@@ -18,11 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Comparator;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service // Marca a classe como um componente de serviço do Spring.
@@ -135,11 +131,57 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
 
     @Override
     public BankedHoursAccumulatedReportDTO generateAccumulatedBankedHoursReport(Integer userId) {
-        BankedHoursAccumulatedReportDTO report = new BankedHoursAccumulatedReportDTO();
-        report.setUserId(userId);
-        report.setMonthlySummaries(new java.util.ArrayList<>());
-        report.setTotalAccumulatedBalance(java.time.Duration.ZERO);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + userId));
 
-        return report;
+        // 1. Encontrar o mês e ano do primeiro registro de ponto do usuário
+        Optional<RegistrosPonto> firstRecord = registroPontoRepository.findTopByIdUsuarioOrderByDataHoraRegistroDesc(userId);
+
+        if (firstRecord.isEmpty()) {
+            // Se não há registros de ponto, retorna um relatório acumulado vazio
+            BankedHoursAccumulatedReportDTO emptyReport = new BankedHoursAccumulatedReportDTO();
+            emptyReport.setUserId(userId);
+            emptyReport.setUserName(user.getFullName());
+            emptyReport.setTotalAccumulatedBalance(Duration.ZERO);
+            emptyReport.setMonthlySummaries(new ArrayList<>());
+            return emptyReport;
+        }
+
+        LocalDate startCalculatingDate = firstRecord.get().getDataHoraRegistro().toLocalDate();
+        LocalDate today = LocalDate.now();
+
+        Duration totalAccumulatedBalance = Duration.ZERO;
+        List<BankedHoursReportDTO> monthlySummaries = new ArrayList<>();
+
+        // 2. Iterar mês a mês, do primeiro registro até o mês atual
+        LocalDate currentMonthIterator = LocalDate.of(startCalculatingDate.getYear(), startCalculatingDate.getMonth(), 1);
+
+        // Enquanto o iterador for menor ou igual ao mês atual (para incluir o mês corrente)
+        while (!currentMonthIterator.isAfter(today)) {
+            int ano = currentMonthIterator.getYear();
+            int mes = currentMonthIterator.getMonthValue();
+
+            // Reutiliza o método de geração de relatório mensal
+            BankedHoursReportDTO monthlyReport = generateMonthlyBankedHoursReport(userId, ano, mes);
+
+            // Acumula o saldo do mês
+            totalAccumulatedBalance = totalAccumulatedBalance.plus(monthlyReport.getBalanceHoursMonth());
+
+            // Adiciona o relatório mensal à lista de sumários
+            monthlySummaries.add(monthlyReport);
+
+            // Move para o próximo mês
+            currentMonthIterator = currentMonthIterator.plusMonths(1); // Mova esta linha para o final do loop
+        }
+
+
+        // 3. Popula e retorna o DTO do relatório acumulado
+        BankedHoursAccumulatedReportDTO accumulatedReport = new BankedHoursAccumulatedReportDTO();
+        accumulatedReport.setUserId(user.getId());
+        accumulatedReport.setUserName(user.getFullName());
+        accumulatedReport.setTotalAccumulatedBalance(totalAccumulatedBalance);
+        accumulatedReport.setMonthlySummaries(monthlySummaries);
+
+        return accumulatedReport;
     }
 }

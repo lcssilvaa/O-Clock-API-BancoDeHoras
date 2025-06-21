@@ -1,5 +1,6 @@
 package com.oclock.api.controller;
 
+import com.oclock.api.dto.BankedHoursAccumulatedReportDTO;
 import com.oclock.api.model.RegistrosPonto;
 import com.oclock.api.service.RegistrosPontoService;
 import com.oclock.api.dto.BankedHoursReportDTO;
@@ -40,6 +41,15 @@ public class RegistroPontoController {
             @RequestParam int ano,
             @RequestParam int mes) {
         BankedHoursReportDTO report = registrosPontoService.generateMonthlyBankedHoursReport(userId, ano, mes);
+        return ResponseEntity.ok(report);
+    }
+
+    // Método para gerar o relatório acumulado
+
+    @GetMapping("/user/{userId}/banco-horas-acumulado")
+    public ResponseEntity<BankedHoursAccumulatedReportDTO> getAccumulatedBankedHoursReport(
+            @PathVariable Integer userId) {
+        BankedHoursAccumulatedReportDTO report = registrosPontoService.generateAccumulatedBankedHoursReport(userId);
         return ResponseEntity.ok(report);
     }
 }
