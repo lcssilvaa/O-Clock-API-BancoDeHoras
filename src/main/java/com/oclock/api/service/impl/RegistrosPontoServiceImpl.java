@@ -1,0 +1,136 @@
+package com.oclock.api.service.impl;
+
+import com.oclock.api.model.RegistrosPonto; // Verifique se o nome da sua entidade é este mesmo
+import com.oclock.api.model.User;
+import com.oclock.api.repository.RegistroPontoRepository;
+import com.oclock.api.repository.UserRepository;
+import com.oclock.api.service.RegistrosPontoService; // Verifique se o nome da sua interface de serviço é este mesmo
+import com.oclock.api.dto.BankedHoursReportDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Duration;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+@Service // Marca a classe como um componente de serviço do Spring.
+public class RegistrosPontoServiceImpl implements RegistrosPontoService {
+
+    private final RegistroPontoRepository registroPontoRepository;
+    private final UserRepository userRepository;
+
+    @Autowired // Injeta as dependências no construtor.
+    public RegistrosPontoServiceImpl(RegistroPontoRepository registroPontoRepository, UserRepository userRepository) {
+        this.registroPontoRepository = registroPontoRepository;
+        this.userRepository = userRepository;
+    }
+
+    /**
+     * Recupera registros de ponto de um usuário para um dia específico.
+     */
+    @Override
+    public List<RegistrosPonto> getRegistrosPontoByUserIdAndDate(Integer userId, LocalDate date) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + userId));
+
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+        return registroPontoRepository.findByIdUsuarioAndDataHoraRegistroBetweenOrderByDataHoraRegistroAsc(userId, startOfDay, endOfDay);
+    }
+
+    /**
+     * Gera um relatório mensal de banco de horas para um usuário.
+     * Calcula horas trabalhadas, horas esperadas e o saldo.
+     * Assume jornada de segunda a sexta para horas esperadas.
+     */
+    @Override
+    public BankedHoursReportDTO generateMonthlyBankedHoursReport(Integer userId, int ano, int mes) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + userId));
+
+        // Jornada diária esperada. Atualmente hardcoded para 8.0 horas.
+        // CONSIDERE: Adicionar um campo 'jornada_diaria_horas' na tabela 'usuarios' e usar aqui.
+        double expectedDailyHours = 8.0;
+
+        LocalDate inicioMes = LocalDate.of(ano, mes, 1);
+        LocalDate fimMes = inicioMes.with(TemporalAdjusters.lastDayOfMonth());
+
+        List<RegistrosPonto> registrosDoMes = registroPontoRepository.findByIdUsuarioAndDataHoraRegistroBetweenOrderByDataHoraRegistroAsc(
+                userId, inicioMes.atStartOfDay(), fimMes.atTime(LocalTime.MAX)
+        );
+
+        Map<LocalDate, List<RegistrosPonto>> registrosPorDia = registrosDoMes.stream()
+                .collect(Collectors.groupingBy(
+                        registro -> registro.getDataHoraRegistro().toLocalDate(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        Map<LocalDate, Duration> horasTrabalhadasPorDia = new LinkedHashMap<>();
+        Duration totalHorasTrabalhadasNoMes = Duration.ZERO;
+        Duration totalHorasEsperadasNoMes = Duration.ZERO;
+
+        for (LocalDate dia = inicioMes; !dia.isAfter(fimMes); dia = dia.plusDays(1)) {
+            // Conta as horas esperadas apenas em dias de semana (segunda a sexta).
+            if (dia.getDayOfWeek() != DayOfWeek.SATURDAY && dia.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                totalHorasEsperadasNoMes = totalHorasEsperadasNoMes.plus(Duration.ofHours((long) expectedDailyHours));
+            }
+
+            List<RegistrosPonto> marcacoesDoDia = registrosPorDia.getOrDefault(dia, new ArrayList<>());
+            marcacoesDoDia.sort(Comparator.comparing(RegistrosPonto::getDataHoraRegistro));
+
+            Duration totalTrabalhadoNoDia = Duration.ZERO;
+            LocalDateTime entrada = null;
+
+            // Calcula horas trabalhadas para o dia (pares ENTRADA/SAÍDA).
+            for (RegistrosPonto registro : marcacoesDoDia) {
+                if (entrada == null) {
+                    entrada = registro.getDataHoraRegistro();
+                } else {
+                    LocalDateTime saida = registro.getDataHoraRegistro();
+                    totalTrabalhadoNoDia = totalTrabalhadoNoDia.plus(Duration.between(entrada, saida));
+                    entrada = null;
+                }
+            }
+            horasTrabalhadasPorDia.put(dia, totalTrabalhadoNoDia);
+            totalHorasTrabalhadasNoMes = totalHorasTrabalhadasNoMes.plus(totalTrabalhadoNoDia);
+        }
+
+        // Calcula o saldo mensal do banco de horas.
+        Duration balanceHorasMes = totalHorasTrabalhadasNoMes.minus(totalHorasEsperadasNoMes);
+        String balanceStatus;
+        if (balanceHorasMes.isZero()) {
+            balanceStatus = "ZERADO";
+        } else if (balanceHorasMes.isNegative()) {
+            balanceStatus = "NEGATIVO";
+        } else {
+            balanceStatus = "POSITIVO";
+        }
+
+        // Popula e retorna o DTO do relatório.
+        BankedHoursReportDTO report = new BankedHoursReportDTO();
+        report.setUserId(user.getId());
+        report.setUserName(user.getFullName());
+        report.setYear(ano);
+        report.setMonth(mes);
+        report.setExpectedDailyHours(expectedDailyHours);
+        report.setDailyHoursWorked(horasTrabalhadasPorDia); // Converte LocalDate para String no DTO
+        report.setTotalHoursWorkedMonth(totalHorasTrabalhadasNoMes);
+        report.setTotalExpectedHoursMonth(totalHorasEsperadasNoMes);
+        report.setBalanceHoursMonth(balanceHorasMes);
+        report.setBalanceStatus(balanceStatus);
+
+        return report;
+    }
+}
