@@ -1,5 +1,6 @@
 package com.oclock.api.service.impl;
 
+import com.oclock.api.dto.BankedHoursAccumulatedReportDTO;
 import com.oclock.api.model.RegistrosPonto; // Verifique se o nome da sua entidade é este mesmo
 import com.oclock.api.model.User;
 import com.oclock.api.repository.RegistroPontoRepository;
@@ -128,6 +129,16 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         report.setTotalExpectedHoursMonth(totalHorasEsperadasNoMes);
         report.setBalanceHoursMonth(balanceHorasMes);
         report.setBalanceStatus(balanceStatus);
+
+        return report;
+    }
+
+    @Override
+    public BankedHoursAccumulatedReportDTO generateAccumulatedBankedHoursReport(Integer userId) {
+        BankedHoursAccumulatedReportDTO report = new BankedHoursAccumulatedReportDTO();
+        report.setUserId(userId);
+        report.setMonthlySummaries(new java.util.ArrayList<>());
+        report.setTotalAccumulatedBalance(java.time.Duration.ZERO);
 
         return report;
     }
