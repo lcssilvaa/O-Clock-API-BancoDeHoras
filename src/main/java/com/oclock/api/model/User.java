@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity // Marca esta classe como uma entidade JPA
@@ -43,7 +43,10 @@ public class User {
     @Column(name = "data_atualizacao")
     private LocalDateTime updatedAt;
 
-    @Column(name = "valor_hora", nullable = false)
-    private Double valorHora; // Use Double para colunas DECIMAL no JPA
+    @Column(name = "valor_hora", precision = 10, scale = 2)
+    private BigDecimal valorHora;
 
-}
+    @Column(name = "jornada_diaria_horas", precision = 4, scale = 2, nullable = false)
+    private BigDecimal jornadaDiariaHoras;
+
+    }

@@ -59,9 +59,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + userId));
 
-        // Jornada diária esperada. Atualmente hardcoded para 8.0 horas.
-        // CONSIDERE: Adicionar um campo 'jornada_diaria_horas' na tabela 'usuarios' e usar aqui.
-        double expectedDailyHours = 8.0;
+        double expectedDailyHours = user.getJornadaDiariaHoras() != null ? user.getJornadaDiariaHoras().doubleValue() : 8.0;
 
         LocalDate inicioMes = LocalDate.of(ano, mes, 1);
         LocalDate fimMes = inicioMes.with(TemporalAdjusters.lastDayOfMonth());
