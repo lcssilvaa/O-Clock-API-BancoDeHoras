@@ -26,13 +26,13 @@ public class User {
     private String passwordHash;
 
     @Column(name = "nome_completo", nullable = false)
-    private String fullName;
+    private String nomeCompleto;
 
     @Column(name = "cpf", unique = true, nullable = false)
     private String cpf;
 
     @Column(name = "permissao", nullable = false)
-    private String permission;
+    private String permissao;
 
     @Column(name = "ativo", nullable = false)
     private boolean active;
