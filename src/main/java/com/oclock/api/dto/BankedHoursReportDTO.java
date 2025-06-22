@@ -20,7 +20,7 @@ public class BankedHoursReportDTO {
     private String userName;
     private int year;
     private int month;
-    private double expectedDailyHours; // Horas diárias esperadas (ex: 8.0)
+    private double expectedDailyHours;
     // Map onde a chave é a data (como String para JSON) e o valor é a duração trabalhada naquele dia.
     private Map<String, Duration> dailyHoursWorked;
     private Duration totalHoursWorkedMonth; // Soma das horas trabalhadas em todos os dias do mês
@@ -38,8 +38,8 @@ public class BankedHoursReportDTO {
                 .collect(Collectors.toMap(
                         entry -> entry.getKey().format(DateTimeFormatter.ISO_DATE), // Converte LocalDate para String (YYYY-MM-DD)
                         Map.Entry::getValue,
-                        (oldValue, newValue) -> oldValue, // Estratégia de merge em caso de chaves duplicadas (não deve acontecer aqui)
-                        LinkedHashMap::new // Garante que a ordem de inserção (datas) seja mantida no mapa resultante
+                        (oldValue, newValue) -> oldValue,
+                        LinkedHashMap::new
                 ));
     }
 }

@@ -116,7 +116,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         // Popula e retorna o DTO do relatório.
         BankedHoursReportDTO report = new BankedHoursReportDTO();
         report.setUserId(user.getId());
-        report.setUserName(user.getFullName());
+        report.setUserName(user.getNomeCompleto());
         report.setYear(ano);
         report.setMonth(mes);
         report.setExpectedDailyHours(expectedDailyHours);
@@ -141,7 +141,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
             // Se não há registros de ponto, retorna um relatório acumulado vazio
             BankedHoursAccumulatedReportDTO emptyReport = new BankedHoursAccumulatedReportDTO();
             emptyReport.setUserId(userId);
-            emptyReport.setUserName(user.getFullName());
+            emptyReport.setUserName(user.getNomeCompleto());
             emptyReport.setTotalAccumulatedBalance(Duration.ZERO);
             emptyReport.setMonthlySummaries(new ArrayList<>());
             return emptyReport;
@@ -178,7 +178,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         // 3. Popula e retorna o DTO do relatório acumulado
         BankedHoursAccumulatedReportDTO accumulatedReport = new BankedHoursAccumulatedReportDTO();
         accumulatedReport.setUserId(user.getId());
-        accumulatedReport.setUserName(user.getFullName());
+        accumulatedReport.setUserName(user.getNomeCompleto());
         accumulatedReport.setTotalAccumulatedBalance(totalAccumulatedBalance);
         accumulatedReport.setMonthlySummaries(monthlySummaries);
 
