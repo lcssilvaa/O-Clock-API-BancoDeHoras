@@ -24,4 +24,29 @@ public class RegistrosPonto {
 
     @Column(name = "data_hora_registro", nullable = false)
     private LocalDateTime dataHoraRegistro;
+
+    @Enumerated(EnumType.STRING) // Armazena o enum como String no banco de dados ("ENTRADA", "SAIDA")
+    @Column(name = "tipo_registro", nullable = false)
+    private TipoRegistro tipoRegistro;
+
+    @Column(name = "observacao")
+    private String observacao;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // Métodos @PrePersist e @PreUpdate para gerenciar as datas automaticamente
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
