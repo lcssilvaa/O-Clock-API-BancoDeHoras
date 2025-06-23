@@ -1,4 +1,4 @@
-package com.oclock.api.repository; // Ajuste o pacote
+package com.oclock.api.repository;
 
 import com.oclock.api.model.RegistrosPonto;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,5 +17,9 @@ public interface RegistroPontoRepository extends JpaRepository<RegistrosPonto, I
     List<RegistrosPonto> findByDataHoraRegistroBetweenOrderByDataHoraRegistroAsc(
             LocalDateTime dataInicio, LocalDateTime dataFim);
 
+    //Último registro de ponto
     Optional<RegistrosPonto> findTopByIdUsuarioOrderByDataHoraRegistroDesc(Integer idUsuario);
+
+    //Primeiro registro de ponto
+    Optional<RegistrosPonto> findTopByIdUsuarioOrderByDataHoraRegistroAsc(Integer idUsuario);
 }
