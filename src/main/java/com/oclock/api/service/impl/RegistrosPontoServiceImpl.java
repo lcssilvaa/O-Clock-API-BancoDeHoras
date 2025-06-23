@@ -1,16 +1,20 @@
 package com.oclock.api.service.impl;
 
 import com.oclock.api.dto.BankedHoursAccumulatedReportDTO;
-import com.oclock.api.model.RegistrosPonto; // Verifique se o nome da sua entidade é este mesmo
+import com.oclock.api.dto.BankedHoursReportDTO;
+import com.oclock.api.dto.PontoRequestDTO; // Importe o DTO para bater ponto
+import com.oclock.api.dto.RegistroPontoAdminDTO; // Importe o DTO para admin CRUD
+import com.oclock.api.model.RegistrosPonto;
+import com.oclock.api.model.TipoRegistro; // Nosso Enum TipoRegistro
 import com.oclock.api.model.User;
 import com.oclock.api.repository.RegistroPontoRepository;
 import com.oclock.api.repository.UserRepository;
-import com.oclock.api.service.RegistrosPontoService; // Verifique se o nome da sua interface de serviço é este mesmo
-import com.oclock.api.dto.BankedHoursReportDTO;
+import com.oclock.api.service.RegistrosPontoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional; // Import para @Transactional
+import org.springframework.web.server.ResponseStatusException; // Import existente
 
 import java.time.Duration;
 import java.time.DayOfWeek;
@@ -21,13 +25,13 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service // Marca a classe como um componente de serviço do Spring.
+@Service
 public class RegistrosPontoServiceImpl implements RegistrosPontoService {
 
     private final RegistroPontoRepository registroPontoRepository;
     private final UserRepository userRepository;
 
-    @Autowired // Injeta as dependências no construtor.
+    @Autowired
     public RegistrosPontoServiceImpl(RegistroPontoRepository registroPontoRepository, UserRepository userRepository) {
         this.registroPontoRepository = registroPontoRepository;
         this.userRepository = userRepository;
@@ -35,6 +39,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
 
     /**
      * Recupera registros de ponto de um usuário para um dia específico.
+     * (Método existente)
      */
     @Override
     public List<RegistrosPonto> getRegistrosPontoByUserIdAndDate(Integer userId, LocalDate date) {
@@ -48,8 +53,7 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
 
     /**
      * Gera um relatório mensal de banco de horas para um usuário.
-     * Calcula horas trabalhadas, horas esperadas e o saldo.
-     * Assume jornada de segunda a sexta para horas esperadas.
+     * (Método existente e completo)
      */
     @Override
     public BankedHoursReportDTO generateMonthlyBankedHoursReport(Integer userId, int ano, int mes) {
@@ -89,13 +93,20 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
             LocalDateTime entrada = null;
 
             // Calcula horas trabalhadas para o dia (pares ENTRADA/SAÍDA).
+            // IMPORTANTE: Esta lógica assume que os pontos ENTRADA/SAIDA estão corretos.
+            // Para maior robustez, considere a validação ou correção de sequências inválidas de pontos.
             for (RegistrosPonto registro : marcacoesDoDia) {
+                // AQUI: A sua lógica de cálculo de horas trabalhadas já está adaptada para ENTRADA/SAIDA.
+                // Mas, se você decidir futuramente adicionar INICIO_INTERVALO/FIM_INTERVALO,
+                // esta parte da lógica precisará ser expandida para considerar esses tipos de registro.
                 if (entrada == null) {
+                    // Assume que o primeiro registro válido é uma ENTRADA
                     entrada = registro.getDataHoraRegistro();
                 } else {
+                    // Assume que o próximo registro é uma SAIDA
                     LocalDateTime saida = registro.getDataHoraRegistro();
                     totalTrabalhadoNoDia = totalTrabalhadoNoDia.plus(Duration.between(entrada, saida));
-                    entrada = null;
+                    entrada = null; // Reseta para próxima ENTRADA
                 }
             }
             horasTrabalhadasPorDia.put(dia, totalTrabalhadoNoDia);
@@ -129,15 +140,19 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         return report;
     }
 
+    /**
+     * Gera um relatório acumulado de banco de horas para um usuário.
+     * (Método existente e completo)
+     */
     @Override
     public BankedHoursAccumulatedReportDTO generateAccumulatedBankedHoursReport(Integer userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + userId));
 
-        // 1. Encontrar o mês e ano do primeiro registro de ponto do usuário
-        Optional<RegistrosPonto> firstRecord = registroPontoRepository.findTopByIdUsuarioOrderByDataHoraRegistroDesc(userId);
+        // Encontrar o mês e ano do primeiro registro de ponto do usuário (o mais antigo)
+        Optional<RegistrosPonto> oldestRecordOpt = registroPontoRepository.findTopByIdUsuarioOrderByDataHoraRegistroAsc(userId);
 
-        if (firstRecord.isEmpty()) {
+        if (oldestRecordOpt.isEmpty()) {
             // Se não há registros de ponto, retorna um relatório acumulado vazio
             BankedHoursAccumulatedReportDTO emptyReport = new BankedHoursAccumulatedReportDTO();
             emptyReport.setUserId(userId);
@@ -147,13 +162,14 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
             return emptyReport;
         }
 
-        LocalDate startCalculatingDate = firstRecord.get().getDataHoraRegistro().toLocalDate();
+        // Declara a variável 'startCalculatingDate' antes de atribuir um valor a ela
+        LocalDate startCalculatingDate = oldestRecordOpt.get().getDataHoraRegistro().toLocalDate();
         LocalDate today = LocalDate.now();
 
         Duration totalAccumulatedBalance = Duration.ZERO;
         List<BankedHoursReportDTO> monthlySummaries = new ArrayList<>();
 
-        // 2. Iterar mês a mês, do primeiro registro até o mês atual
+        // Iterar mês a mês, do primeiro registro até o mês atual
         LocalDate currentMonthIterator = LocalDate.of(startCalculatingDate.getYear(), startCalculatingDate.getMonth(), 1);
 
         // Enquanto o iterador for menor ou igual ao mês atual (para incluir o mês corrente)
@@ -171,11 +187,10 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
             monthlySummaries.add(monthlyReport);
 
             // Move para o próximo mês
-            currentMonthIterator = currentMonthIterator.plusMonths(1); // Mova esta linha para o final do loop
+            currentMonthIterator = currentMonthIterator.plusMonths(1);
         }
 
-
-        // 3. Popula e retorna o DTO do relatório acumulado
+        // Popula e retorna o DTO do relatório acumulado
         BankedHoursAccumulatedReportDTO accumulatedReport = new BankedHoursAccumulatedReportDTO();
         accumulatedReport.setUserId(user.getId());
         accumulatedReport.setUserName(user.getNomeCompleto());
@@ -183,5 +198,136 @@ public class RegistrosPontoServiceImpl implements RegistrosPontoService {
         accumulatedReport.setMonthlySummaries(monthlySummaries);
 
         return accumulatedReport;
+    }
+
+    /**
+     * Implementa a lógica de "bater ponto", determinando automaticamente ENTRADA ou SAIDA.
+     */
+    @Override
+    @Transactional // Garante que a operação é atômica (tudo ou nada)
+    public RegistrosPonto baterPonto(Integer idUsuario, LocalDateTime dataHoraRegistro) {
+        // 1. Verificar se o usuário existe
+        userRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário com ID " + idUsuario + " não encontrado."));
+
+        // 2. Encontrar o último registro de ponto do usuário
+        Optional<RegistrosPonto> ultimoRegistroOpt = registroPontoRepository.findTopByIdUsuarioOrderByDataHoraRegistroDesc(idUsuario);
+
+        TipoRegistro proximoTipo;
+
+        if (ultimoRegistroOpt.isEmpty()) {
+            // Se não há registros anteriores, o primeiro ponto é sempre ENTRADA
+            proximoTipo = TipoRegistro.ENTRADA;
+        } else {
+            // Se há registros, alternar entre ENTRADA e SAIDA
+            RegistrosPonto ultimoRegistro = ultimoRegistroOpt.get();
+            if (ultimoRegistro.getTipoRegistro() == TipoRegistro.ENTRADA) {
+                proximoTipo = TipoRegistro.SAIDA;
+            } else {
+                proximoTipo = TipoRegistro.ENTRADA;
+            }
+        }
+
+        // 3. Criar e salvar o novo registro de ponto
+        RegistrosPonto novoPonto = new RegistrosPonto();
+        novoPonto.setIdUsuario(idUsuario); // Definimos o idUsuario diretamente
+        novoPonto.setDataHoraRegistro(dataHoraRegistro);
+        novoPonto.setTipoRegistro(proximoTipo);
+        novoPonto.setObservacao("Ponto batido automaticamente pela API."); // Observação padrão
+        // createdAt e updatedAt serão preenchidos automaticamente pelas anotações @PrePersist
+
+        return registroPontoRepository.save(novoPonto);
+    }
+
+    /**
+     * Recupera todos os registros de ponto. (Para uso de administrador)
+     */
+    @Override
+    public List<RegistrosPonto> getAllRegistrosPonto() {
+        return registroPontoRepository.findAll();
+    }
+
+    /**
+     * Recupera um registro de ponto por ID. (Para uso de administrador)
+     */
+    @Override
+    public RegistrosPonto getRegistroPontoById(Integer id) {
+        return registroPontoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro de ponto com ID " + id + " não encontrado."));
+    }
+
+    /**
+     * Cria um novo registro de ponto manualmente (por um administrador).
+     */
+    @Override
+    @Transactional
+    public RegistrosPonto createRegistroPonto(RegistroPontoAdminDTO registroPontoDTO) {
+        // 1. Verificar se o usuário existe antes de criar o registro para ele
+        userRepository.findById(registroPontoDTO.getIdUsuario())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário com ID " + registroPontoDTO.getIdUsuario() + " não encontrado."));
+
+        RegistrosPonto novoRegistro = new RegistrosPonto();
+        novoRegistro.setIdUsuario(registroPontoDTO.getIdUsuario());
+        novoRegistro.setDataHoraRegistro(registroPontoDTO.getDataHoraRegistro());
+        novoRegistro.setTipoRegistro(registroPontoDTO.getTipoRegistro()); // Aqui o tipo vem do DTO (admin)
+        novoRegistro.setObservacao(registroPontoDTO.getObservacao());
+
+        return registroPontoRepository.save(novoRegistro);
+    }
+
+    /**
+     * Atualiza um registro de ponto existente (por um administrador).
+     */
+    @Override
+    @Transactional
+    public RegistrosPonto updateRegistroPonto(Integer id, RegistroPontoAdminDTO registroPontoDTO) {
+        // Encontrar o registro de ponto existente
+        RegistrosPonto registroExistente = registroPontoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro de ponto com ID " + id + " não encontrado para atualização."));
+
+        // Verificar se o usuário associado (se alterado no DTO) existe
+        if (!registroExistente.getIdUsuario().equals(registroPontoDTO.getIdUsuario())) {
+            userRepository.findById(registroPontoDTO.getIdUsuario())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Novo Usuário com ID " + registroPontoDTO.getIdUsuario() + " não encontrado para associação."));
+            registroExistente.setIdUsuario(registroPontoDTO.getIdUsuario());
+        }
+
+        // Atualizar os campos
+        registroExistente.setDataHoraRegistro(registroPontoDTO.getDataHoraRegistro());
+        registroExistente.setTipoRegistro(registroPontoDTO.getTipoRegistro()); // Tipo pode ser corrigido pelo admin
+        registroExistente.setObservacao(registroPontoDTO.getObservacao());
+        // updatedAt será preenchido automaticamente pela anotação @PreUpdate
+
+        return registroPontoRepository.save(registroExistente);
+    }
+
+    /**
+     * Deleta um registro de ponto por ID. (Para uso de administrador)
+     */
+    @Override
+    public void deleteRegistroPonto(Integer id) {
+        if (!registroPontoRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro de ponto com ID " + id + " não encontrado para exclusão.");
+        }
+        registroPontoRepository.deleteById(id);
+    }
+
+    /**
+     * Recupera registros de ponto de um usuário em um período específico. (Para uso de administrador/relatório)
+     */
+    @Override
+    public List<RegistrosPonto> getRegistrosPontoByUsuarioAndPeriodo(Integer idUsuario, LocalDateTime inicio, LocalDateTime fim) {
+        userRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário com ID " + idUsuario + " não encontrado."));
+
+        return registroPontoRepository.findByIdUsuarioAndDataHoraRegistroBetweenOrderByDataHoraRegistroAsc(idUsuario, inicio, fim);
+    }
+
+    /**
+     * Recupera todos os registros de ponto em um período específico. (Para uso de administrador/relatório)
+     */
+    @Override
+    public List<RegistrosPonto> getRegistrosPontoByPeriodo(LocalDateTime inicio, LocalDateTime fim) {
+        return registroPontoRepository.findByDataHoraRegistroBetweenOrderByDataHoraRegistroAsc(inicio, fim);
     }
 }
