@@ -10,7 +10,6 @@ import java.util.List;
 
 public interface RegistrosPontoService {
 
-    // --- Métodos Existentes ---
     List<RegistrosPonto> getRegistrosPontoByUserIdAndDate(Integer userId, LocalDate date);
     BankedHoursReportDTO generateMonthlyBankedHoursReport(Integer userId, int ano, int mes);
     BankedHoursAccumulatedReportDTO generateAccumulatedBankedHoursReport(Integer userId);
@@ -19,7 +18,7 @@ public interface RegistrosPontoService {
 
     List<RegistrosPonto> getAllRegistrosPonto();
     RegistrosPonto getRegistroPontoById(Integer id);
-    RegistrosPonto createRegistroPonto(RegistroPontoAdminDTO registroPontoDTO); // Adicionado para criação explícita (via admin ou import)
+    RegistrosPonto createRegistroPonto(RegistroPontoAdminDTO registroPontoDTO);
     RegistrosPonto updateRegistroPonto(Integer id, RegistroPontoAdminDTO registroPontoDTO);
     void deleteRegistroPonto(Integer id);
 

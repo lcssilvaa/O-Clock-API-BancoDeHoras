@@ -6,13 +6,6 @@ import java.nio.charset.StandardCharsets;
 
 public class Sha256Hasher {
 
-    /**
-     * Gera o hash SHA-256 de uma string.
-     *
-     * @param text O texto (senha em texto puro) a ser hashed.
-     * @return O hash SHA-256 em formato hexadecimal.
-     * @throws RuntimeException se o algoritmo SHA-256 não for encontrado (altamente improvável).
-     */
     public static String hash(String text) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -33,13 +26,6 @@ public class Sha256Hasher {
         }
     }
 
-    /**
-     * Verifica se uma senha em texto puro corresponde a um hash SHA-256 armazenado.
-     *
-     * @param plainTextPassword A senha em texto puro fornecida (ex: no login).
-     * @param storedHash O hash SHA-256 armazenado no banco de dados.
-     * @return true se o hash da senha em texto puro corresponder ao hash armazenado, false caso contrário.
-     */
     public static boolean verify(String plainTextPassword, String storedHash) {
         if (plainTextPassword == null || storedHash == null) {
             return false;

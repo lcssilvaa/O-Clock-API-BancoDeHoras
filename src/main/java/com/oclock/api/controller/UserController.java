@@ -15,13 +15,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
-@RestController // Marca esta classe como um controlador REST
-@RequestMapping("/api/users") // Define a URL base para todos os endpoints deste controller
+@CrossOrigin(origins = "http://127.0.0.1:5500")
+@RestController
+@RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
 
-    @Autowired // Injeção de dependência do UserService
+    @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
     }
@@ -30,9 +31,8 @@ public class UserController {
     public ResponseEntity<User> createUser(@Valid @RequestBody UserCreateUpdateDTO userDTO) {
         try {
             User newUser = userService.createUser(userDTO);
-            return new ResponseEntity<>(newUser, HttpStatus.CREATED); // Retorna 201 Created
+            return new ResponseEntity<>(newUser, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
@@ -40,25 +40,24 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
         List<User> users = userService.getAllUsers();
-        return new ResponseEntity<>(users, HttpStatus.OK); // Retorna 200 OK
+        return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Integer id) {
         return userService.getUserById(id)
-                .map(user -> new ResponseEntity<>(user, HttpStatus.OK)) // Se encontrar, retorna 200 OK
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + id)); // Se não encontrar, retorna 404 Not Found
+                .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado com ID: " + id));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Integer id, @Valid @RequestBody UserCreateUpdateDTO userDTO) {
         try {
             User updatedUser = userService.updateUser(id, userDTO);
-            return new ResponseEntity<>(updatedUser, HttpStatus.OK); // Retorna 200 OK
+            return new ResponseEntity<>(updatedUser, HttpStatus.OK);
         } catch (EntityNotFoundException e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage()); // Retorna 404 Not Found
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
-            // Se o email ou CPF atualizado já existirem
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
@@ -67,19 +66,17 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
         try {
             userService.deleteUser(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT); // Retorna 204 No Content (sucesso sem corpo)
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (EntityNotFoundException e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage()); // Retorna 404 Not Found
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
     }
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody LoginRequest loginRequest) {
-
         Optional<User> authenticatedUser = userService.authenticateUser(
                 loginRequest.getEmail(), loginRequest.getPassword()
         );
-
         return authenticatedUser
                 .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos."));

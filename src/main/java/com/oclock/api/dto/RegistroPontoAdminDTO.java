@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-@Data // Gera getters, setters, toString, equals e hashCode do Lombok
-@NoArgsConstructor // Gera construtor sem argumentos do Lombok
-@AllArgsConstructor // Gera construtor com todos os argumentos do Lombok
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class RegistroPontoAdminDTO {
 
     @NotNull(message = "O ID do usuário é obrigatório")

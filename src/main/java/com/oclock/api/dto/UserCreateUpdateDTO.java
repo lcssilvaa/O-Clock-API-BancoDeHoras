@@ -23,7 +23,7 @@ public class UserCreateUpdateDTO {
     private String email;
 
     @NotBlank(message = "A senha é obrigatória")
-    private String password; // Hash SHA-256 já gerado pelo JavaFX
+    private String password;
 
     @NotBlank(message = "O CPF é obrigatório")
     @CPF(message = "CPF inválido")
@@ -35,11 +35,11 @@ public class UserCreateUpdateDTO {
 
     @NotBlank(message = "A permissão é obrigatória")
     @Pattern(regexp = "admin|usuario", message = "A permissão deve ser 'admin' ou 'usuario'")
-    private String permissao; // String para 'admin' ou 'usuario'
+    private String permissao;
 
     @NotNull(message = "O status ativo é obrigatório")
-    private Boolean active; // Use Boolean wrapper para permitir nulo na validação, se necessário, ou boolean primitivo
+    private Boolean active;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "O valor da hora não pode ser negativo")
-    private BigDecimal valorHora; // Novo campo
+    private BigDecimal valorHora;
 }

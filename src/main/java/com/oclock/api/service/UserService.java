@@ -18,6 +18,5 @@ public interface UserService {
 
     void deleteUser(Integer userId);
 
-    // Método para autenticação. Retorna o usuário se as credenciais forem válidas.
     Optional<User> authenticateUser(String email, String password);
 }
